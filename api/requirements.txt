@@ -12,7 +12,7 @@ imagesize==1.4.1
 importlib-metadata==5.2.0
 itsdangerous==2.1.2
 Jinja2==3.1.2
-MarkupSafe==2.0.0
+MarkupSafe>=2.0.0
 packaging==22.0
 pkg_resources==0.0.0
 pydantic==1.10.2
