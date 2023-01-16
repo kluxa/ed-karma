@@ -8,8 +8,6 @@ def api_key_required(view):
     def wrapped_view(**kwargs):
         apiKey = request.headers.get('X-Api-Key')
         if apiKey not in current_app.config['API_KEYS']:
-            print(request.headers)
-            print('Aborting with 403')
             abort(403)
 
         g.user = current_app.config['API_KEYS'][apiKey]
