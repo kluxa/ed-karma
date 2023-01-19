@@ -5,9 +5,9 @@ import os
 from flask import Flask
 
 def configure_logging(instance_path):
-    logger = logging.getLogger('writes')
+    logger = logging.getLogger('updates')
     logger.setLevel(logging.INFO)
-    handler = logging.FileHandler(f'{instance_path}/writes.log')
+    handler = logging.FileHandler(f'{instance_path}/updates.log')
     handler.setLevel(logging.INFO)
     handler.setFormatter(logging.Formatter(
         '[%(asctime)s][%(user)s] %(message)s',

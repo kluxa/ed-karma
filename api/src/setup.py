@@ -22,6 +22,7 @@ def setup_app(users_file):
     click.echo('Setting up the app...')
     setup_db()
     setup_config(users_file)
+    os.makedirs(os.path.join(current_app.instance_path, 'errors'))
 
 def setup_db():
     db_path = current_app.config['DATABASE']

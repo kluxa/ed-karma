@@ -1,4 +1,5 @@
 
+import datetime
 import logging
 
 from flask import (
@@ -10,28 +11,30 @@ from .db import get_db
 
 bp = Blueprint('scores', __name__)
 
+########################################################################
+
 @bp.get('/scores')
 @api_key_required
 def get_scores():
     res = {}
 
-    if request.args.get('posts'):
-        res.update({'posts': retrieve_scores('posts', 'Posts')})
+    args = request.args
+    if args.get('posts'):
+        res['posts'] = retrieve_scores('Posts', args.get('posts'))
 
-    if request.args.get('replies'):
-        res.update({'replies': retrieve_scores('replies', 'Replies')})
+    if args.get('replies'):
+        res['replies'] = retrieve_scores('Replies', args.get('replies'))
 
     return jsonify(res)
 
-def retrieve_scores(key_name, table_name):
-    arg = request.args.get(key_name, '')
-    if arg == '':
+def retrieve_scores(table_name, str_ids):
+    if str_ids == '':
         return []
 
     try:
-        ids = list(map(int, arg.split(',')))
-    except ValueError:
-        return abort(400)
+        ids = list(map(int, str_ids.split(',')))
+    except ValueError as e:
+        abort(400)
 
     db = get_db()
     res = db.execute(
@@ -46,33 +49,43 @@ def retrieve_scores(key_name, table_name):
 @bp.put('/scores')
 @api_key_required
 def put_scores():
-    update_scores('posts', 'Posts')
-    update_scores('replies', 'Replies')
-    return '', 204
-
-def update_scores(key_name, table_name):
     try:
-        body = request.get_json()
-        records = body[key_name]
-        log_records(records, table_name)
+        body = request.json
 
-        db = get_db()
-        db.executemany(
-            f'insert or replace into {table_name} values (?, ?, ?, ?)',
-            map(lambda r: list(r.values()), records.values())
-        )
-        db.commit()
+        if body.get('posts'):
+            update_scores('Posts', body.get('posts'))
+
+        if body.get('replies'):
+            update_scores('Replies', body.get('replies'))
+
+        return '', 204
 
     except Exception as e:
+        log_error(e)
         abort(400)
 
-def log_records(records, table_name):
-    logger = logging.getLogger('writes')
-    for r_id, r in records.items():
-        val = f'({r_id}, {r["userId"]}, {r["userName"]}, {r["karma"]})'
+def update_scores(table_name, records):
+    log_records(table_name, records)
+
+    db = get_db()
+    db.executemany(
+        f'insert or replace into {table_name} values (?, ?, ?, ?)',
+        map(record_to_tuple, records.values())
+    )
+    db.commit()
+
+def log_records(table_name, records):
+    logger = logging.getLogger('updates')
+    for r in records.values():
+        t = record_to_tuple(r)
         logger.info(
-            f'inserting {val} into {table_name}', extra={'user': g.user}
+            f'inserting {t} into {table_name}', extra={'user': g.user}
         )
+
+def record_to_tuple(r):
+    return (
+        int(r['id']), int(r['userId']), r['userName'], int(r['karma'])
+    )
 
 ########################################################################
 
@@ -98,3 +111,16 @@ group by userId;
 
     result = [dict(row) for row in res]
     return jsonify(result)
+
+########################################################################
+
+def log_error(exception):
+    now = datetime.datetime.now()
+    s = now.strftime('%Y-%m-%d-%H-%M-%S-%f')
+    with open(f'{current_app.instance_path}/errors/{s}.log', 'w') as f:
+        f.write(f'Exception: {exception}\n')
+        f.write(f'Method: {request.method}\n')
+        f.write(f'Path: {request.path}\n')
+        f.write(f'Query string: {request.query_string.decode()}\n')
+        f.write(f'Headers:\n{request.headers}\n')
+        f.write(f'Body:\n{str(request.data.decode())}\n')
