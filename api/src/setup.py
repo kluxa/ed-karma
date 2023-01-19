@@ -22,7 +22,7 @@ def setup_app(users_file):
     click.echo('Setting up the app...')
     setup_db()
     setup_config(users_file)
-    os.makedirs(os.path.join(current_app.instance_path, 'errors'))
+    setup_error_log_dir()
 
 def setup_db():
     db_path = current_app.config['DATABASE']
@@ -83,3 +83,9 @@ def create_config(users_file, existing_api_keys):
 def generate_api_key():
     chars = string.ascii_letters + string.digits
     return ''.join(random.choice(chars) for i in range(32))
+
+def setup_error_log_dir():
+    os.makedirs(
+        os.path.join(current_app.instance_path, 'errors'),
+        exist_ok=True,
+    )
