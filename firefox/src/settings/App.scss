@@ -1,0 +1,74 @@
+
+@import "~@fontsource/open-sans/index.css";
+
+:root {
+  --navbar-height: 50px;
+}
+
+/**********************************************************************/
+/* Theme-independent styles */
+
+.navbar {
+  background-color: #3e3e3e;
+  height: var(--navbar-height);
+}
+
+.navbar-my-brand {
+  color: white;
+  font-family: 'Open Sans';
+  font-size: 20px;
+}
+
+.main {
+  padding-top: var(--navbar-height);
+}
+
+/************************************************/
+
+input:disabled {
+  cursor: not-allowed;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  pointer-events: all !important;
+}
+
+/************************************************/
+
+.toast-success {
+  background-color: rgb(149, 255, 149);
+  color: black;
+}
+
+.toast-error {
+  background-color: rgb(255, 185, 169);
+  color: black;
+}
+
+/**********************************************************************/
+/* Theme-dependent styles */
+
+[data-ed-karma-theme=light] {
+  html,
+  body {
+    background-color: white;
+    color: black;
+  }
+
+  .card {
+    background-color: #f8f8f8;
+  }
+}
+
+[data-ed-karma-theme=dark] {
+  html,
+  body {
+    background-color: #29282b;
+    color: #ddd;
+  }
+
+  .card {
+    background-color: #323134;
+  }
+}

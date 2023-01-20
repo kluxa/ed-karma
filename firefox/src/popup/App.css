@@ -1,0 +1,40 @@
+
+body {
+  background-color: #29282b;
+  border: 2px solid white;
+  margin: 0px !important;
+  padding: 15px;
+  text-align: center;
+  width: 200px;
+}
+
+.logo {
+  display: block;
+  margin: 0 auto;
+  width: 60px;
+}
+
+.title {
+  color: white;
+  font-size: 24px;
+  text-align: center;
+}
+
+button {
+  background-color: rgb(72, 72, 84);
+  border: none;
+  color: white;
+  font-size: 1.5em;
+  padding: 4px;
+  text-align: center;
+  width: 100%;
+  cursor: pointer;
+}
+
+button + button {
+  margin-top: 12px;
+}
+
+button:hover {
+  background-color: rgb(92, 92, 106);
+}

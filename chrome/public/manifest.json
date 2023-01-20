@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "Ed Karma",
+  "version": "1.0",
+
+  "description": "Adds a point system to the Ed forum",
+  "homepage_url": "https://github.com/kluxa/ed-karma",
+  "author": "Kevin Luxa",
+
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "*://edstem.org/*"
+  ],
+
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
+
+  "icons": {
+    "48": "icons/ed-karma-48.png",
+    "96": "icons/ed-karma-96.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "*://edstem.org/*"
+      ],
+      "css": [
+        "static/css/content.css"
+      ],
+      "js": [
+        "static/js/browser-polyfill.js",
+        "static/js/content.js",
+        "static/js/inject.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+
+  "action": {
+    "browser_style": true,
+    "default_icon": "icons/ed-karma-48.png",
+    "default_popup": "popup.html",
+    "default_title": "Ed Karma"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "lib/*",
+        "static/media/*"
+      ],
+      "matches": [
+        "*://edstem.org/*"
+      ]
+    }
+  ]
+}

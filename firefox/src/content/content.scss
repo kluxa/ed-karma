@@ -1,0 +1,72 @@
+
+/**********************************************************************/
+/* Theme-independent styles */
+
+.karma-action-btn {
+  position: relative;
+}
+
+.karma-menu-popup {
+  margin: auto;
+  position: absolute;
+  top: 0px;
+  left: -14px;
+  z-index: 1;
+}
+
+.karma-menu-btn-group {
+  border-radius: 7px;
+  padding: 5px 0px;
+  text-align: center;
+}
+
+.karma-menu-btn {
+  border: none;
+  display: block;
+  font-family: "Segoe UI", "Roboto", "Arial";
+  font-size: 15px;
+  padding: 2px 20px;
+  width: 100%;
+}
+
+.toast-error {
+  background-color: rgb(255, 185, 169);
+  color: black;
+}
+
+/**********************************************************************/
+/* Theme-dependent styles */
+
+.theme-light {
+  .karma-menu-btn-group {
+    background-color: #f4f4f4;
+    border: 1px solid #bdbdbd;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2);
+  }
+
+  .karma-menu-btn {
+    background-color: #f4f4f4;
+    color: #333;
+  }
+
+  .karma-menu-btn:hover {
+    background-color: blueviolet;
+    color: white;
+  }
+}
+
+.theme-dark {
+  .karma-menu-btn-group {
+    background-color: #4a474f;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
+  }
+
+  .karma-menu-btn {
+    background-color: #4a474f;
+    color: white;
+  }
+
+  .karma-menu-btn:hover {
+    background-color: blueviolet;
+  }
+}
