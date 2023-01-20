@@ -117,7 +117,7 @@ group by userId;
 def log_error(exception):
     now = datetime.datetime.now()
     s = now.strftime('%Y-%m-%d-%H-%M-%S-%f')
-    with open(f'{current_app.instance_path}/errors/{s}.log', 'w') as f:
+    with open(f'{current_app.instance_path}/error-logs/{s}.log', 'w') as f:
         f.write(f'Exception: {exception}\n')
         f.write(f'Method: {request.method}\n')
         f.write(f'Path: {request.path}\n')

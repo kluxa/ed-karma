@@ -86,6 +86,6 @@ def generate_api_key():
 
 def setup_error_log_dir():
     os.makedirs(
-        os.path.join(current_app.instance_path, 'errors'),
+        os.path.join(current_app.instance_path, 'error-logs'),
         exist_ok=True,
     )
