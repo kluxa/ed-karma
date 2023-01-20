@@ -3,6 +3,7 @@ import logging
 import os
 
 from flask import Flask
+from flask_cors import CORS
 
 def configure_logging(instance_path):
     logger = logging.getLogger('updates')
@@ -20,6 +21,8 @@ def create_app(test_config=None):
         __name__,
         instance_relative_config=True,
     )
+    CORS(app)
+
     app.config.from_mapping(
         DATABASE=os.path.join(app.instance_path, 'edkarma.sqlite'),
     )
