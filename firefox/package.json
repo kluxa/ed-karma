@@ -1,6 +1,6 @@
 {
-  "name": "react-firefox",
-  "version": "0.1.0",
+  "name": "ed-karma-firefox",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@fontsource/open-sans": "^4.5.13",

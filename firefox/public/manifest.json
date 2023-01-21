@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Ed Karma",
-  "version": "1.0",
+  "version": "1.0.0",
 
   "description": "Adds a point system to the Ed forum",
   "homepage_url": "https://github.com/kluxa/ed-karma",
