@@ -157,21 +157,19 @@ const T = new ThreadCache();
 ////////////////////////////////////////////////////////////////////////
 // Event handlers
 
-browser.runtime.onMessage.addListener(function(message) {
+browser.runtime.onMessage.addListener((message) => {
   if (message.type === 'user-data') {
-    console.debug("[EdKarma] Received user data:", message.data);
+    console.debug("[Ed Karma] Received user data:", message.data);
     handleUserData(message.data);
   } else if (message.type === 'thread-data') {
-    console.debug("[EdKarma] Received thread data:", message.data);
+    console.debug("[Ed Karma] Received thread data:", message.data);
     handleThreadData(message.data);
   }
 });
 
 document.addEventListener('edKarmaSocketMessage', (e) => {
-  if (!U.contains(T.courseId)) return;
-
   const message = e.detail;
-  console.debug("[EdKarma] Received message on socket:", message);
+  console.debug("[Ed Karma] Received message on socket:", message);
   if (message.type === 'comment.new') {
     handleNewReply(message.data);
   } else if (message.type === 'comment.update') {
@@ -233,6 +231,7 @@ async function handleUserData(userData) {
 async function handleThreadData(threadData) {
   const thread = unpackThreadData(threadData);
 
+  // not authorised to award points
   if (!U.contains(thread.courseId)) return;
 
   let scores;
@@ -247,8 +246,10 @@ async function handleThreadData(threadData) {
     scores = {posts: {}, replies: {}};
   }
 
-  if (!(await waitForRender(thread.number))) {
-    console.warn("[EdKarma] Giving up (thread failed to render)");
+  if (!onThreadPage(thread.courseId, thread.id)) return;
+
+  if (!(await waitForThreadRender(thread.number))) {
+    console.warn("[Ed Karma] Giving up (thread failed to render)");
     return;
   }
 
@@ -304,14 +305,20 @@ function unpackThreadData(response) {
   }
 }
 
+function onThreadPage(courseId, threadId) {
+  return window.location.href.includes(
+    `courses/${courseId}/discussion/${threadId}`
+  );
+}
+
 /**
 * Wait for the thread to render
 * @param {number} threadNumber
 * @returns {Promise<boolean>}
 */
-function waitForRender(threadNumber) {
+function waitForThreadRender(threadNumber) {
   return new Promise(resolve => {
-    function checkForRender(retries = 0) {
+    function checkForThreadRender(retries = 0) {
       if (retries > 100) {
         resolve(false);
         return;
@@ -320,35 +327,38 @@ function waitForRender(threadNumber) {
       if (elem && elem.textContent.match(`#${threadNumber}`)) {
         resolve(true);
       } else {
-        setTimeout(() => checkForRender(retries + 1), 0);
+        setTimeout(() => checkForThreadRender(retries + 1), 0);
       }
     }
-    checkForRender();
+    checkForThreadRender();
   });
 }
 
 ////////////////////////////////////////////////////////////////////////
 
 async function handleNewReply(data) {
-  if (!window.location.href.includes(
-    `courses/${data.comment.course_id}/` +
-    `discussion/${data.comment.thread_id}`
-  )) {
-    return;
-  }
+  const replyData = data.comment;
+
+  // not authorised to award points
+  if (!U.contains(replyData.course_id)) return;
+
+  // if we're not actually on the page that has the reply
+  if (!onThreadPage(replyData.course_id, replyData.thread_id)) return;
 
   const reply = {
-    id: data.comment.id,
-    userId: data.comment.user_id,
-    userName: data.comment.user?.name,
-    type: data.comment.type,
+    id: replyData.id,
+    userId: replyData.user_id,
+    userName: replyData.user?.name,
+    type: replyData.type,
     karma: 0,
   };
   T.insertReply(reply);
 
   if (!(await waitForReplyRender(reply.id))) {
-    console.warn(`[EdKarma] Giving up (${reply.type} failed to render)`);
+    console.warn(`[Ed Karma] Giving up (${reply.type} failed to render)`);
+    return;
   }
+
   addKarmaMenus();
 }
 
@@ -365,7 +375,6 @@ function waitForReplyRender(replyId) {
       if (elem) {
         resolve(true);
       } else {
-        // console.log("[EdKarma] Retrying checkForReplyRender...");
         setTimeout(() => checkForReplyRender(retries + 1), 0);
       }
     }
@@ -376,33 +385,28 @@ function waitForReplyRender(replyId) {
 ////////////////////////////////////////////////////////////////////////
 
 async function handleUpdatedReply(data) {
-  const id = data.comment.id;
+  const replyData = data.comment;
 
-  // answer/comment was liked/un-liked
-  if (data.comment.type === undefined) return;
+  // not authorised to award points
+  if (!U.contains(replyData.course_id)) return;
 
   // if we're not actually on the page that has the reply
-  if (!window.location.href.includes(
-    `courses/${data.comment.course_id}/` +
-    `discussion/${data.comment.thread_id}`
-  )) {
-    return;
-  }
+  if (!onThreadPage(replyData.course_id, replyData.thread_id)) return;
+
+  // if the answer/comment was only liked/un-liked
+  if (replyData.type === undefined) return;
 
   // if the answer/comment has already been deleted
-  if (data.comment.deleted_at !== null) return;
+  if (replyData.deleted_at !== null) return;
 
-  // answer/comment was not converted to comment/answer
-  if (data.comment.type === T.getReply(id).type) {
-    return;
-  }
+  // if the answer/comment was not converted to comment/answer
+  if (replyData.type === T.getReply(replyData.id).type) return;
 
-  T.convert(id, data.comment.type);
+  T.convert(replyData.id, replyData.type);
 
-  if (!(await waitForUnrender(id))) {
+  if (!(await waitForReplyUnrender(replyData.id))) {
     console.warn(
-      "[EdKarma] Giving up " +
-      `(${data.comment.type} failed to unrender)...`
+      `[Ed Karma] Giving up (${replyData.type} failed to unrender)...`
     );
     return;
   }
@@ -415,9 +419,9 @@ async function handleUpdatedReply(data) {
 * @param {number} postId
 * @returns {Promise<boolean>}
 */
-function waitForUnrender(postId) {
+function waitForReplyUnrender(postId) {
   return new Promise(resolve => {
-    function checkForUnrender(retries = 0) {
+    function checkForReplyUnrender(retries = 0) {
       if (retries > 100) {
         resolve(false);
         return;
@@ -428,11 +432,10 @@ function waitForUnrender(postId) {
       if (!elem) {
         resolve(true);
       } else {
-        // console.log("[EdKarma] Retrying checkForUnrender...");
-        setTimeout(() => checkForUnrender(retries + 1), 0);
+        setTimeout(() => checkForReplyUnrender(retries + 1), 0);
       }
     }
-    checkForUnrender();
+    checkForReplyUnrender();
   });
 }
 
@@ -452,7 +455,7 @@ function addKarmaMenuToPost() {
 
     addKarmaMenu(actions, ContribType.POST, T.getPost());
   } else {
-    console.warn(`[EdKarma] Post could not be found`);
+    console.warn(`[Ed Karma] Post could not be found`);
   }
 }
 
@@ -465,7 +468,7 @@ function addKarmaMenusToAnswers() {
     if (T.getReply(answerId)) {
       addKarmaMenu(actions, ContribType.ANSWER, T.getReply(answerId));
     } else {
-      console.warn(`[EdKarma] Answer ${answerId} could not be found`);
+      console.warn(`[Ed Karma] Answer ${answerId} could not be found`);
     }
   }
 }
@@ -479,7 +482,7 @@ function addKarmaMenusToComments() {
     if (T.getReply(commentId)) {
       addKarmaMenu(actions, ContribType.COMMENT, T.getReply(commentId));
     } else {
-      console.warn(`[EdKarma] Comment ${commentId} could not be found`);
+      console.warn(`[Ed Karma] Comment ${commentId} could not be found`);
     }
   }
 }

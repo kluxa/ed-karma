@@ -59,6 +59,7 @@ export default class ServerStorage {
     const res = {};
     for (const user of users) {
       res[user.userId] = {
+        id: user.userId,
         name: user.userName,
         posts: user.posts,
         replies: user.replies,

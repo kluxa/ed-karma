@@ -9,14 +9,14 @@
         // response interceptor
         const json = () => response.clone().json().then((data) => {
             const url = resource.url;
-            if (url.match(/https:\/\/edstem\.org\/api\/user/)) {
+            if (url.match(/^https:\/\/edstem\.org\/api\/user$/)) {
                 document.dispatchEvent(new CustomEvent('fetchData', {
                     detail: {
                         type: 'user-data',
                         data: data,
                     },
                 }));
-            } else if (url.match(/https:\/\/edstem\.org\/api\/threads\/.*\?.*/)) {
+            } else if (url.match(/^https:\/\/edstem\.org\/api\/threads\/.*\?.*/)) {
                 document.dispatchEvent(new CustomEvent('fetchData', {
                     detail: {
                         type: 'thread-data',

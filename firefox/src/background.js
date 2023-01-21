@@ -3,13 +3,13 @@
 
 browser.webRequest.onBeforeRequest.addListener(
   userListener,
-  {urls: ["*://edstem.org/api/user"]},
+  {urls: ["https://edstem.org/api/user"]},
   ["blocking"],
 );
 
 browser.webRequest.onBeforeRequest.addListener(
   threadListener,
-  {urls: ["*://edstem.org/api/threads/*?*"]},
+  {urls: ["https://edstem.org/api/threads/*?*"]},
   ["blocking"],
 );
 
