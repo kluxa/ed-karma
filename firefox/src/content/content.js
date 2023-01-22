@@ -460,10 +460,10 @@ async function handleDeletedReply(data) {
 
 /**
 * Wait for a answer/comment to unrender
-* @param {number} postId
+* @param {number} replyId
 * @returns {Promise<boolean>}
 */
-function waitForReplyUnrender(postId) {
+function waitForReplyUnrender(replyId) {
   return new Promise(resolve => {
     function checkForReplyUnrender(retries = 0) {
       if (retries > 100) {
@@ -471,7 +471,7 @@ function waitForReplyUnrender(postId) {
         return;
       }
       const elem = document.querySelector(
-        `[data-karma-id="${postId}"]`
+        `[data-karma-id="${replyId}"]`
       );
       if (!elem) {
         resolve(true);
@@ -656,7 +656,12 @@ function KarmaAddon(props) {
 
 function KarmaPopup(props) {
   return (
-    <div className="karma-menu-popup">
+    <div
+      className="karma-menu-popup"
+      style={{
+        left: props.type === ContribType.COMMENT ? "-14px" : "-12px",
+      }}
+    >
       <div style={{ height: "24px" }}></div>
       <div className="karma-menu-btn-group">
         { [0, 1, 2, 3, 4, 5].map((karma) =>
