@@ -162,26 +162,36 @@ browser.runtime.onMessage.addListener((message) => {
     console.debug("[Ed Karma] Received user data:", message.data);
     handleUserData(message.data);
   } else if (message.type === 'thread-data') {
+    if (!onManagedCourse()) return;
     console.debug("[Ed Karma] Received thread data:", message.data);
     handleThreadData(message.data);
   }
 });
 
 document.addEventListener('edKarmaSocketMessage', (e) => {
+  if (!onManagedCourse()) return;
   const message = e.detail;
   console.debug("[Ed Karma] Received message on socket:", message);
   if (message.type === 'comment.new') {
     handleNewReply(message.data);
   } else if (message.type === 'comment.update') {
     handleUpdatedReply(message.data);
+  } else if (message.type === 'comment.delete') {
+    handleDeletedReply(message.data);
   }
 });
 
+function onManagedCourse() {
+  const url = window.location.href;
+  const match = url.match(/courses\/(\d+)\/discussion\/(\d+)/);
+  return match && U.contains(parseInt(match[1]));
+}
+
 ////////////////////////////////////////////////////////////////////////
 
-async function handleUserData(userData) {
+async function handleUserData(data) {
   let courses = [];
-  for (const {course, role: {role}} of userData.courses) {
+  for (const {course, role: {role}} of data.courses) {
     if (parseInt(course.year) < 2022) continue;
 
     const status = course.status;
@@ -228,11 +238,14 @@ async function handleUserData(userData) {
  *  }
  */
 
-async function handleThreadData(threadData) {
-  const thread = unpackThreadData(threadData);
-
+async function handleThreadData(data) {
   // not authorised to award points
-  if (!U.contains(thread.courseId)) return;
+  if (!U.contains(data.thread.course_id)) return;
+
+  // deleted thread
+  if (data.thread.deleted_at !== null) return;
+
+  const thread = unpackThreadData(data);
 
   let scores;
   try {
@@ -246,7 +259,7 @@ async function handleThreadData(threadData) {
     scores = {posts: {}, replies: {}};
   }
 
-  if (!onThreadPage(thread.courseId, thread.id)) return;
+  if (!onThreadPage(thread.id)) return;
 
   if (!(await waitForThreadRender(thread.number))) {
     console.warn("[Ed Karma] Giving up (thread failed to render)");
@@ -258,30 +271,30 @@ async function handleThreadData(threadData) {
   addKarmaMenus();
 }
 
-function unpackThreadData(response) {
+function unpackThreadData(data) {
   const users = {};
-  for (const user of response.users) {
+  for (const user of data.users) {
     users[user.id] = user;
   }
 
   const res = {
-    id: response.thread.id,
-    number: response.thread.number,
-    courseId: response.thread.course_id,
+    id: data.thread.id,
+    number: data.thread.number,
+    courseId: data.thread.course_id,
     post: {},
     answers: {},
     comments: {},
   };
 
   res.post = {
-    id: response.thread.id,
-    userId: response.thread.user_id,
-    userName: users[response.thread.user_id]?.name,
+    id: data.thread.id,
+    userId: data.thread.user_id,
+    userName: users[data.thread.user_id]?.name,
   };
 
-  flattenComments(response.thread.comments);
+  flattenComments(data.thread.comments);
 
-  for (const answer of response.thread.answers) {
+  for (const answer of data.thread.answers) {
     res.answers[answer.id] = {
       id: answer.id,
       userId: answer.user_id,
@@ -305,9 +318,9 @@ function unpackThreadData(response) {
   }
 }
 
-function onThreadPage(courseId, threadId) {
+function onThreadPage(threadId) {
   return window.location.href.includes(
-    `courses/${courseId}/discussion/${threadId}`
+    `discussion/${threadId}`
   );
 }
 
@@ -343,7 +356,7 @@ async function handleNewReply(data) {
   if (!U.contains(replyData.course_id)) return;
 
   // if we're not actually on the page that has the reply
-  if (!onThreadPage(replyData.course_id, replyData.thread_id)) return;
+  if (!onThreadPage(replyData.thread_id)) return;
 
   const reply = {
     id: replyData.id,
@@ -359,7 +372,10 @@ async function handleNewReply(data) {
     return;
   }
 
-  addKarmaMenus();
+  for (let i = 0; i < 5; i++) {
+    addKarmaMenus();
+    await delay(10);
+  }
 }
 
 function waitForReplyRender(replyId) {
@@ -372,13 +388,19 @@ function waitForReplyRender(replyId) {
       const elem = document.querySelector(
         `[data-comment-id="${replyId}"]`
       );
-      if (elem) {
+      if (elem?.querySelector('.disthrb-actions, .discom-actions')) {
         resolve(true);
       } else {
         setTimeout(() => checkForReplyRender(retries + 1), 0);
       }
     }
     checkForReplyRender();
+  });
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(), ms);
   });
 }
 
@@ -391,7 +413,7 @@ async function handleUpdatedReply(data) {
   if (!U.contains(replyData.course_id)) return;
 
   // if we're not actually on the page that has the reply
-  if (!onThreadPage(replyData.course_id, replyData.thread_id)) return;
+  if (!onThreadPage(replyData.thread_id)) return;
 
   // if the answer/comment was only liked/un-liked
   if (replyData.type === undefined) return;
@@ -399,14 +421,36 @@ async function handleUpdatedReply(data) {
   // if the answer/comment has already been deleted
   if (replyData.deleted_at !== null) return;
 
-  // if the answer/comment was not converted to comment/answer
-  if (replyData.type === T.getReply(replyData.id).type) return;
+  if (replyData.type === T.getReply(replyData.id).type) {
+    if (!(await waitForReplyRender(replyData.id))) {
+      console.warn(
+        `[Ed Karma] Giving up (${replyData.type} ${replyData.id} ` +
+        `failed to render)`
+      );
+      return;
+    }
+  } else {
+    T.convert(replyData.id, replyData.type);
+  
+    if (!(await waitForReplyUnrender(replyData.id))) {
+      console.warn(
+        `[Ed Karma] Giving up (${replyData.type} ${replyData.id} ` +
+        `failed to unrender)`
+      );
+      return;
+    }
+  }
 
-  T.convert(replyData.id, replyData.type);
+  addKarmaMenus();
+}
 
-  if (!(await waitForReplyUnrender(replyData.id))) {
+async function handleDeletedReply(data) {
+  if (!onThreadPage(data.thread_id)) return;
+
+  if (!(await waitForReplyUnrender(data.comment_id))) {
     console.warn(
-      `[Ed Karma] Giving up (${replyData.type} failed to unrender)...`
+      `[Ed Karma] Giving up (comment ${data.comment_id} ` +
+      `failed to unrender)`
     );
     return;
   }
@@ -453,6 +497,7 @@ function addKarmaMenuToPost() {
   if (post) {
     const actions = post.querySelector('.disthrb-actions');
 
+    addListenerToCommentButton(actions);
     addKarmaMenu(actions, ContribType.POST, T.getPost());
   } else {
     console.warn(`[Ed Karma] Post could not be found`);
@@ -479,7 +524,10 @@ function addKarmaMenusToComments() {
     const actions = comment.querySelector('.discom-actions');
     const commentId = comment.getAttribute('data-comment-id');
 
-    if (T.getReply(commentId)) {
+    if (!actions) {
+      continue;
+    } else if (T.getReply(commentId)) {
+      addListenerToEditButton(actions);
       addKarmaMenu(actions, ContribType.COMMENT, T.getReply(commentId));
     } else {
       console.warn(`[Ed Karma] Comment ${commentId} could not be found`);
@@ -495,10 +543,57 @@ function addListenersToCommentBars() {
   for (const bar of bars) {
     if (bar.getAttribute('ed-karma-listener') !== 'true') {
       bar.setAttribute('ed-karma-listener', 'true');
-      bar.addEventListener('click', async () => {
+      bar.addEventListener('click', () => {
         // testing shows that a delay is not necessary
         addKarmaMenus();
       });
+    }
+  }
+}
+
+function addListenerToCommentButton(actionsMenu) {
+  const btns = actionsMenu.getElementsByTagName("button");
+  for (const btn of btns) {
+    if (btn.innerText.includes("Comment")) {
+      if (btn.getAttribute('ed-karma-listener') !== 'true') {
+        btn.setAttribute('ed-karma-listener', 'true');
+        btn.addEventListener('click', () => {
+          addListenersToCancelButtons();
+          addKarmaMenus();
+        });
+      }
+      break;
+    }
+  }
+}
+
+function addListenersToCancelButtons() {
+  const grps = document.getElementsByClassName("disrep-actions-buttons");
+  for (const grp of grps) {
+    const btns = grp.getElementsByTagName("button");
+    for (const btn of btns) {
+      if (btn.innerText.includes("Cancel")) {
+        if (btn.getAttribute('ed-karma-listener') !== 'true') {
+          btn.setAttribute('ed-karma-listener', 'true');
+          btn.addEventListener('click', () => {
+            addKarmaMenus();
+          });
+        }
+      }
+    }
+  }
+}
+
+function addListenerToEditButton(actionsMenu) {
+  const btns = actionsMenu.getElementsByTagName("button");
+  for (const btn of btns) {
+    if (btn.innerText.includes("Edit")) {
+      if (btn.getAttribute('ed-karma-listener') !== 'true') {
+        btn.setAttribute('ed-karma-listener', 'true');
+        btn.addEventListener('click', () => {
+          addListenersToCancelButtons();
+        });
+      }
     }
   }
 }
